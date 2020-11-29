@@ -61,6 +61,7 @@ int main(int argc,char* argv[])
             int pageNumMask = 0; 
             int offsetMask = 0;
             for(int i=0; i<8; i++){
+                
                 offsetMask |= 1 << i;
                 pageNumMask |= 1 << (i+8);
             }
@@ -74,8 +75,9 @@ int main(int argc,char* argv[])
             for(int i=0; i<TLBsize; i++){
                 if(TLB[i][0] == pageNum){
                     TLBhit = 1;
+                    int value = mem[pTable[pageNum]][offset];
                     int phyAddress = TLB[i][1]*FRAME_SIZE + offset;
-                    printf("Virtual Address : %d and Physical Address : %d\n", address, phyAddress);
+                    printf("Virtual Address: %d and Physical Address: %d with value: %d \n", address, phyAddress, value);
                     TLBstat++;
                     break;
                 }
@@ -86,8 +88,9 @@ int main(int argc,char* argv[])
                     pageFault(pageNum);
                     pageFaultStat++;
                 }
+                int value = mem[pTable[pageNum]][offset];
                 int phyAddress = pTable[pageNum]*FRAME_SIZE + offset;
-                printf("Virtual Address : %d and Physical Address : %d\n", address, phyAddress);
+                printf("Virtual Address: %d and Physical Address: %d with Value: %d \n", address, phyAddress, value);
 
                 if(TLBsize != 16){
                     TLB[TLBsize][0] = pageNum;
