@@ -30,7 +30,7 @@ unsigned getoffset(unsigned x) { return (0xff & x); }
 void getpage_offset(unsigned x) {
   unsigned  page   = getpage(x);
   unsigned  offset = getoffset(x);
-  printf("x is: %u, page: %u, offset: %u, address: %u, paddress: %u\n", x, page, offset,
+  printf("x is: %u, page: %u, offset: %u, address: %u, physical address: %u\n", x, page, offset,
          (page << 8) | getoffset(x), page * 256 + offset);
 }
 //--------------------------------------------------------------------
@@ -42,48 +42,54 @@ unsigned   logic_add;                  // read from file address.txt
 unsigned   virt_add, phys_add, value;  // read from file correct.txt
 
 int TLB[TLB_SIZE][2];
-int page_table[PAGE_SIZE];
+int pTable[PAGE_SIZE];
 int hit = 0;
 int SIZE_TLB = 0;
 
-int memory_full = 0;
-int memory[FRAME_SIZE][PAGE_SIZE];
+int memFull = 0;
+int mem[FRAME_SIZE][PAGE_SIZE];
 
-void Fault(int page){
-  FILE* BACKING_STORE = fopen("BACKING_STORE.bin","rb");
-  if (BACKING_STORE == NULL) { fprintf(stderr, "Could not open file: 'correct.txt'\n");  exit(FILE_ERROR);  }
+void pageFault(int pNum){
+    FILE *ptr = fopen("BACKING_STORE.bin","rb");
 
-  fread(buf,sizeof(buf),1,BACKING_STORE);
+    if (ptr == NULL)
+    {printf("File cannot be opened. \n");}
 
-  for(int i=0; i<FRAME_SIZE; i++){
-    memory[memory_full][i] = buf[i];
-  }
-  page_table[page] = memory_full;
-  memory_full++;
-  fclose(BACKING_STORE);
+    if (fseek(ptr, FRAME_SIZE*pNum, SEEK_SET) != 0)
+    {printf("Page cannot be found.\n");}
+
+    unsigned char buffer[FRAME_SIZE];
+    fread(buffer,sizeof(buffer),1,ptr);
+
+    for(int i=0; i<FRAME_SIZE; i++)
+    {mem[memFull][i] = buffer[i];}
+
+    pTable[pNum] = memFull;
+    memFull++;
+
+    fclose(ptr);
 }
 
 int main(int argc, const char* argv[]) {
   FILE* fadd = fopen("addresses.txt", "r");    // open file addresses.txt  (contains the logical addresses)
-  if (fadd == NULL) { fprintf(stderr, "Could not open file: 'addresses.txt'\n");  exit(FILE_ERROR);  }
+  if (fadd == NULL) { fprintf(stderr, "Couldn't open file: 'addresses.txt'\n");  exit(FILE_ERROR);  }
 
   FILE* fcorr = fopen("correct.txt", "r");     // contains the logical and physical address, and its value
-  if (fcorr == NULL) { fprintf(stderr, "Could not open file: 'correct.txt'\n");  exit(FILE_ERROR);  }
+  if (fcorr == NULL) { fprintf(stderr, "Couldn't open file: 'correct.txt'\n");  exit(FILE_ERROR);  }
 
   for(int i=0; i<FRAME_SIZE; i++){
-    page_table[i] = -1;
+    pTable[i] = -1;
   }
 
 
   while (fscanf(fadd, "%d", &logic_add) == 1) {
 
     address_count++;
-
     fscanf(fcorr, "%s %s %d %s %s %d %s %d", buf, buf, &virt_add,
            buf, buf, &phys_add, buf, &value);  // read from file correct.txt
 
     fscanf(fadd, "%d", &logic_add);  // read from file address.txt
-    page   = getpage(  logic_add);
+    page   = getpage(logic_add);
     offset = getoffset(logic_add);
 
     for(int i = 0; i<TLB_SIZE; i++){
@@ -96,14 +102,14 @@ int main(int argc, const char* argv[]) {
     }
 
     if(hit != 1) {
-      if(page_table[page] == -1) {
-        Fault(page);
+      if(pTable[page] == -1) {
+        pageFault(page);
         total_page_fault++;
       }
-      physical_add = page_table[page]*PAGE_SIZE + offset;
+      physical_add = pTable[page]*PAGE_SIZE + offset;
       if(TLB_SIZE != 16){
         TLB[TLB_SIZE][0] = page;
-        TLB[TLB_SIZE][1] = page_table[page];
+        TLB[TLB_SIZE][1] = pTable[page];
         SIZE_TLB++;
       } else {
         for(int i = 0; i<15; i++){
@@ -111,7 +117,7 @@ int main(int argc, const char* argv[]) {
           TLB[i][1] = TLB[i+1][1];
         }
         TLB[15][0] = page;
-        TLB[15][1] = page_table[page];
+        TLB[15][1] = pTable[page];
       }
     }    
     printf("logical: %5u (page: %3u, offset: %3u) ---> physical: %5u -- passed\n", logic_add, page, offset, physical_add);
