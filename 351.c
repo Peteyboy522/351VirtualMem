@@ -104,6 +104,8 @@ int main(int argc,char* argv[])
                 }
             }
         }
+        printf("\n\nPage-fault rate: %.2f%%\n", (1.0*pageFaultStat) / (1.0 * tAccess) * 100.0);
+        printf("TLB-hit rate: %.2f%%\n", (1.0*TLBstat) / (1.0 * tAccess) * 100.0);
         fclose(fp); 
     } 
     return 0; 
